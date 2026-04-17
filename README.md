@@ -46,9 +46,9 @@ Traditional hotel platforms separate accommodation search from local experiences
 
 ##  Team
 
-- [@member1](https://github.com/ซาน) — Frontend / UX
-- [@member2](https://github.com/โมท) — Backend / API
-- [@member3](https://github.com/เหม่ย) — AI / Data
+- [@ซาน](https://github.com/ซาน) — Frontend / UX
+- [@โมท](https://github.com/โมท) — Backend / API
+- [@เหม่ย](https://github.com/เหม่ย) — AI / Data
 
 ## License
 
