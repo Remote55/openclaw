@@ -1,0 +1,22 @@
+{
+  "HomePage": {
+    "title": "Welcome to OpenClaw",
+    "description": "AI-powered hotel booking platform that merges hotels and local events in one place.",
+    "cta": {
+      "getStarted": "Get Started",
+      "learnMore": "Learn More"
+    },
+    "cities": {
+      "title": "Supported Cities",
+      "tokyo": "Tokyo, Japan",
+      "bangkok": "Bangkok, Thailand",
+      "paris": "Paris, France",
+      "hatyai": "Hat Yai, Thailand"
+    }
+  },
+  "Common": {
+    "language": "Language",
+    "thai": "ไทย",
+    "english": "English"
+  }
+}
