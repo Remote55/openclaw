@@ -1,0 +1,20 @@
+# Default owner for everything
+* @<repo-owner-username>
+
+# Frontend
+/src/app/**           @<frontend-dev-username>
+/src/components/**    @<frontend-dev-username>
+/src/styles/**        @<frontend-dev-username>
+
+# Backend
+/src/app/api/**       @<backend-dev-username>
+/src/lib/services/**  @<backend-dev-username>
+/src/lib/db/**        @<backend-dev-username>
+
+# AI
+/src/lib/ai/**        @<ai-dev-username>
+/src/lib/prompts/**   @<ai-dev-username>
+
+# Shared — ต้อง review ทั้งทีม
+/docs/**              @<all-three-usernames>
+/.github/**           @<repo-owner-username>
