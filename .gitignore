@@ -40,3 +40,13 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Claude Code personal settings
+.claude/settings.local.json
+.claude/.credentials.json
+
+# Claude Code
+.claude/settings.local.json
+.claude/.credentials.json
+.claude/logs/
+.claude/cache/

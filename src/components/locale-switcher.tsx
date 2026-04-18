@@ -2,8 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl'
 import { useTransition } from 'react'
-import { usePathname, useRouter } from '@/i18n/routing'
-import { routing } from '@/i18n/routing'
+import { routing, usePathname, useRouter } from '@/i18n/routing'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,14 +11,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
+type Locale = (typeof routing.locales)[number]
+
 export function LocaleSwitcher() {
   const t = useTranslations('Common')
-  const locale = useLocale()
+  const locale = useLocale() as Locale
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
-  function onSelectLocale(nextLocale: (typeof routing.locales)[number]) {
+  function onSelectLocale(nextLocale: Locale) {
+    if (nextLocale === locale) return
     startTransition(() => {
       router.replace(pathname, { locale: nextLocale })
     })
@@ -28,24 +30,20 @@ export function LocaleSwitcher() {
   const label = locale === 'th' ? t('thai') : t('english')
 
   return (
-      <DropdownMenu>
-        {/* @ts-expect-error - React 19 type conflict with Radix UI */}
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={isPending}>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={isPending}
+        render={
+          <Button variant="outline" size="sm" aria-label={t('language')}>
             🌐 {label}
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => onSelectLocale('th')}
-          disabled={locale === 'th'}
-        >
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onSelectLocale('th')} disabled={locale === 'th'}>
           🇹🇭 {t('thai')}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onSelectLocale('en')}
-          disabled={locale === 'en'}
-        >
+        <DropdownMenuItem onClick={() => onSelectLocale('en')} disabled={locale === 'en'}>
           🇺🇸 {t('english')}
         </DropdownMenuItem>
       </DropdownMenuContent>
