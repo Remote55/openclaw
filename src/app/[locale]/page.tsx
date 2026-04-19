@@ -1,4 +1,3 @@
-import { use } from 'react'
 import { setRequestLocale } from 'next-intl/server'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
@@ -10,15 +9,41 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { LocaleSwitcher } from '@/components/locale-switcher'
+import { createClient } from '@/lib/supabase/server'
 
-export default function HomePage({
+export default async function HomePage({
   params,
 }: {
   params: Promise<{ locale: string }>
 }) {
-  const { locale } = use(params)
+  const { locale } = await params
   setRequestLocale(locale)
 
+  // Test: fetch cities from Supabase
+  const supabase = await createClient()
+  const { data: cities, error } = await supabase
+    .from('cities')
+    .select('slug, name_en, name_th, country_code')
+    .order('name_en')
+
+  return (
+    <HomePageContent
+      locale={locale}
+      cities={cities ?? []}
+      error={error?.message}
+    />
+  )
+}
+
+function HomePageContent({
+  locale,
+  cities,
+  error,
+}: {
+  locale: string
+  cities: Array<{ slug: string; name_en: string; name_th: string; country_code: string }>
+  error?: string
+}) {
   const t = useTranslations('HomePage')
 
   return (
@@ -40,12 +65,20 @@ export default function HomePage({
 
           <div className="border-t pt-4">
             <h3 className="mb-2 text-sm font-medium">{t('cities.title')}</h3>
-            <ul className="text-muted-foreground space-y-1 text-sm">
-              <li>🗼 {t('cities.tokyo')}</li>
-              <li>🏯 {t('cities.bangkok')}</li>
-              <li>🗼 {t('cities.paris')}</li>
-              <li>🏖️ {t('cities.hatyai')}</li>
-            </ul>
+            {error ? (
+              <p className="text-sm text-red-500">Error: {error}</p>
+            ) : cities.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No cities found.</p>
+            ) : (
+              <ul className="text-muted-foreground space-y-1 text-sm">
+                {cities.map((city) => (
+                  <li key={city.slug}>
+                    📍 {locale === 'th' ? city.name_th : city.name_en}{' '}
+                    ({city.country_code})
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </CardContent>
       </Card>

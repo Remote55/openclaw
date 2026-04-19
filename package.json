@@ -3,17 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db:types": "supabase gen types typescript --linked > src/lib/supabase/types.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\""
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.103.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",
@@ -34,6 +37,7 @@
     "eslint-config-next": "16.2.4",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "supabase": "^2.92.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
