@@ -18,5 +18,23 @@
     "language": "Language",
     "thai": "ไทย",
     "english": "English"
+  },
+  "Search": {
+    "title": "Search Accommodations",
+    "selectCity": "Select City",
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "adults": "Adults",
+    "children": "Children",
+    "searchButton": "Search Hotels",
+    "searching": "Searching...",
+    "noResults": "No available hotels found. Try different dates.",
+    "cachedBadge": "From cache",
+    "perNight": "per night",
+    "refundable": "Free cancellation",
+    "nonRefundable": "Non-refundable",
+    "stars": "stars",
+    "viewDetails": "View Details",
+    "error": "Error"
   }
 }

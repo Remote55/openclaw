@@ -18,5 +18,23 @@
     "language": "ภาษา",
     "thai": "ไทย",
     "english": "English"
+  },
+  "Search": {
+    "title": "ค้นหาที่พัก",
+    "selectCity": "เลือกเมือง",
+    "checkin": "วันเช็คอิน",
+    "checkout": "วันเช็คเอาท์",
+    "adults": "ผู้ใหญ่",
+    "children": "เด็ก",
+    "searchButton": "ค้นหาโรงแรม",
+    "searching": "กำลังค้นหา...",
+    "noResults": "ไม่พบโรงแรมที่ว่าง กรุณาลองเปลี่ยนวันที่",
+    "cachedBadge": "จากแคช",
+    "perNight": "ต่อคืน",
+    "refundable": "ยกเลิกฟรี",
+    "nonRefundable": "ยกเลิกไม่ได้",
+    "stars": "ดาว",
+    "viewDetails": "ดูรายละเอียด",
+    "error": "เกิดข้อผิดพลาด"
   }
 }
