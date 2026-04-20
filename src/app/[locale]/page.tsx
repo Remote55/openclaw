@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import {
   Card,
   CardContent,
@@ -59,7 +60,11 @@ function HomePageContent({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Button>{t('cta.getStarted')}</Button>
+            <Button
+              render={
+                <Link href={`/${locale}/search`}>{t('cta.getStarted')}</Link>
+              }
+            />
             <Button variant="outline">{t('cta.learnMore')}</Button>
           </div>
 

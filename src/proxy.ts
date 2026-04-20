@@ -3,13 +3,18 @@ import createIntlMiddleware from 'next-intl/middleware'
 import { createServerClient } from '@supabase/ssr'
 import { routing } from '@/i18n/routing'
 
+// next-intl still exports under `/middleware`; the factory itself is
+// framework-agnostic and works fine from a Next.js 16 proxy file.
 const intlMiddleware = createIntlMiddleware(routing)
 
-export async function middleware(request: NextRequest) {
-  // Run i18n middleware first
+export async function proxy(request: NextRequest) {
+  // Run i18n proxy first
   const response = intlMiddleware(request)
 
-  // Refresh Supabase session (important for SSR)
+  // Refresh Supabase session (important for SSR).
+  // The cookie bridge mutates both the incoming request cookies
+  // (so the downstream handler sees the fresh session) and the outgoing
+  // response cookies (so the browser persists the refreshed tokens).
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
