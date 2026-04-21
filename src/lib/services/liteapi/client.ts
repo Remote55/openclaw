@@ -152,7 +152,10 @@ export async function liteapiRequest<TResponse>({
         '[LiteAPI] Response validation failed:',
         parsed.error.format()
       )
-      console.warn('[LiteAPI] Raw response:', JSON.stringify(json).slice(0, 500))
+      console.warn(
+        '[LiteAPI] Raw response:',
+        JSON.stringify(json).slice(0, 500)
+      )
     }
     throw new LiteAPIValidationError(
       'LiteAPI response did not match expected schema',

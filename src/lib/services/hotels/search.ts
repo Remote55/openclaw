@@ -1,13 +1,37 @@
 /**
  * Hotel search service.
- * Orchestrates: LiteAPI live rates + Redis cache + Supabase static content.
+ * Orchestrates: LiteAPI live rates + LiteAPI static data + Redis cache.
+ *
+ * Why 2-phase fetch?
+ *   LiteAPI's `POST /hotels/rates` endpoint returns rates keyed by `hotelId`
+ *   but the static hotel info (name, photos, stars, address) it returns
+ *   alongside is inconsistent — the `includeHotelData` flag does not reliably
+ *   populate top-level fields like `name` on every environment. We therefore
+ *   fetch `/data/hotels` (static) in parallel and JOIN on `hotelId`, so the
+ *   name/photo/stars always come from a schema-enforced source.
  */
-import { searchRates, type HotelRates } from '@/lib/services/liteapi'
+import {
+  searchRates,
+  listHotelsByCity,
+  type HotelRates,
+  type HotelListItem,
+} from '@/lib/services/liteapi'
 import { buildCacheKey, cacheGet, cacheSet } from '@/lib/cache/redis'
-import type { HotelWithOffer, NormalizedHotel, NormalizedOffer } from '@/lib/services/liteapi'
+import type {
+  HotelWithOffer,
+  NormalizedHotel,
+  NormalizedOffer,
+} from '@/lib/services/liteapi'
 
 /** Search results cache TTL: 5 minutes (rates change frequently) */
 const SEARCH_CACHE_TTL_SECONDS = 5 * 60
+
+/** Bump this when the cached shape changes so old entries are invalidated. */
+const SEARCH_CACHE_NAMESPACE = 'hotel-search:v2'
+
+/** Upper bound on static-data fetch — should be >= rates `limit` so every
+ *  rate has a static counterpart to JOIN against. */
+const STATIC_HOTEL_LIMIT = 500
 
 export interface SearchHotelsInput {
   /** City slug from our cities table: 'tokyo' | 'bangkok' | 'paris' | 'hat-yai' */
@@ -54,7 +78,7 @@ export async function searchHotels(
   } = input
 
   // Build cache key
-  const cacheKey = buildCacheKey('hotel-search:v1', {
+  const cacheKey = buildCacheKey(SEARCH_CACHE_NAMESPACE, {
     citySlug,
     checkin,
     checkout,
@@ -71,29 +95,54 @@ export async function searchHotels(
     return { ...cached, cached: true }
   }
 
-  // Call LiteAPI
-  const response = await searchRates({
-    checkin,
-    checkout,
-    currency,
-    guestNationality,
-    occupancies: [{ adults, children }],
-    countryCode,
-    cityName,
-    limit,
-    maxRatesPerHotel: 1, // cheapest only for list view
-    includeHotelData: true,
-    timeout: 10,
-  })
+  // Parallel fetch: rates (must succeed) + static hotels (best-effort).
+  // Static fetch failure is non-fatal — we still return rates without names
+  // rather than failing the whole search.
+  const [ratesResponse, staticResponse] = await Promise.all([
+    searchRates({
+      checkin,
+      checkout,
+      currency,
+      guestNationality,
+      occupancies: [{ adults, children }],
+      countryCode,
+      cityName,
+      limit,
+      maxRatesPerHotel: 1, // cheapest only for list view
+      // Still request embedded hotel data so we have a fallback if the static
+      // fetch fails. The JOIN below prefers the static source when present.
+      includeHotelData: true,
+      timeout: 10,
+    }),
+    listHotelsByCity({
+      countryCode,
+      cityName,
+      limit: STATIC_HOTEL_LIMIT,
+    }).catch((err) => {
+      console.warn(
+        '[searchHotels] listHotelsByCity failed (non-fatal); falling back to embedded rate data:',
+        err
+      )
+      return { data: [] as HotelListItem[] }
+    }),
+  ])
 
-  // Normalize each hotel + its cheapest offer
-  const hotelsWithOffers: HotelWithOffer[] = response.data
-    .map((h) => normalizeHotelWithCheapestOffer(h))
+  // Build lookup map: hotelId -> static info
+  const staticByHotelId = new Map<string, HotelListItem>()
+  for (const h of staticResponse.data) {
+    staticByHotelId.set(h.id, h)
+  }
+
+  // Normalize each hotel + its cheapest offer, using static info when available
+  const hotelsWithOffers: HotelWithOffer[] = ratesResponse.data
+    .map((h) =>
+      normalizeHotelWithCheapestOffer(h, staticByHotelId.get(h.hotelId))
+    )
     .filter((h): h is HotelWithOffer => h !== null)
 
   const result: SearchHotelsResult = {
     hotels: hotelsWithOffers,
-    total: response.data.length,
+    total: ratesResponse.data.length,
     cached: false,
   }
 
@@ -104,10 +153,38 @@ export async function searchHotels(
 }
 
 /**
+ * Return a usable string or null. Filters out empty strings and whitespace.
+ * LiteAPI sometimes returns `""` for missing fields instead of null.
+ */
+function nonEmpty(s: string | null | undefined): string | null {
+  if (s == null) return null
+  const trimmed = s.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/**
+ * Return a usable URL or null. Filters out empty strings and obviously-broken
+ * values. We intentionally do NOT throw on malformed URLs — just drop them so
+ * the UI can render its placeholder instead.
+ */
+function nonEmptyUrl(s: string | null | undefined): string | null {
+  const v = nonEmpty(s)
+  if (!v) return null
+  if (!/^https?:\/\//i.test(v)) return null
+  return v
+}
+
+/**
  * Convert a LiteAPI hotel+offer response into our normalized shape.
  * Returns null if no bookable offer is available.
+ *
+ * @param r          rate-endpoint row (always present)
+ * @param staticInfo static-endpoint row joined on hotelId (may be missing)
  */
-function normalizeHotelWithCheapestOffer(h: HotelRates): HotelWithOffer | null {
+function normalizeHotelWithCheapestOffer(
+  r: HotelRates,
+  staticInfo: HotelListItem | undefined
+): HotelWithOffer | null {
   // Find cheapest rate across all offers
   let cheapestRate: {
     offerId: string
@@ -121,7 +198,7 @@ function normalizeHotelWithCheapestOffer(h: HotelRates): HotelWithOffer | null {
     policyText: string | null
   } | null = null
 
-  for (const offer of h.roomTypes ?? []) {
+  for (const offer of r.roomTypes ?? []) {
     for (const rate of offer.rates ?? []) {
       const totals = rate.retailRate?.total ?? []
       if (totals.length === 0) continue
@@ -134,7 +211,10 @@ function normalizeHotelWithCheapestOffer(h: HotelRates): HotelWithOffer | null {
         const policies = rate.cancellationPolicies?.cancelPolicyInfos ?? []
         const policyText = policies.length
           ? policies
-              .map((p) => `${p.type ?? 'charge'} ${p.amount ?? ''} ${p.currency ?? ''}`)
+              .map(
+                (p) =>
+                  `${p.type ?? 'charge'} ${p.amount ?? ''} ${p.currency ?? ''}`
+              )
               .join(' / ')
           : null
 
@@ -156,19 +236,34 @@ function normalizeHotelWithCheapestOffer(h: HotelRates): HotelWithOffer | null {
   // Skip hotels without bookable offers
   if (!cheapestRate) return null
 
+  // Merge precedence: static (schema-enforced) > rate-embedded > safe fallback
+  const name =
+    nonEmpty(staticInfo?.name) ??
+    nonEmpty(r.name) ??
+    `Hotel ${r.hotelId}`
+
   const hotel: NormalizedHotel = {
-    id: h.hotelId,
-    liteapiHotelId: h.hotelId,
-    name: h.name ?? 'Unknown hotel',
-    description: null,
-    address: h.address ?? null,
-    city: h.city ?? null,
-    country: h.country ?? null,
-    starRating: h.starRating ?? null,
-    thumbnailUrl: h.thumbnail ?? h.main_photo ?? null,
-    imageUrl: h.main_photo ?? h.thumbnail ?? null,
-    latitude: h.latitude ?? null,
-    longitude: h.longitude ?? null,
+    id: r.hotelId,
+    liteapiHotelId: r.hotelId,
+    name,
+    description: nonEmpty(staticInfo?.hotelDescription),
+    address: nonEmpty(staticInfo?.address) ?? nonEmpty(r.address),
+    city: nonEmpty(staticInfo?.city) ?? nonEmpty(r.city),
+    country: nonEmpty(staticInfo?.country) ?? nonEmpty(r.country),
+    // Note: static uses `stars`, rate uses `starRating`
+    starRating: staticInfo?.stars ?? r.starRating ?? null,
+    thumbnailUrl:
+      nonEmptyUrl(staticInfo?.thumbnail) ??
+      nonEmptyUrl(staticInfo?.main_photo) ??
+      nonEmptyUrl(r.thumbnail) ??
+      nonEmptyUrl(r.main_photo),
+    imageUrl:
+      nonEmptyUrl(staticInfo?.main_photo) ??
+      nonEmptyUrl(staticInfo?.thumbnail) ??
+      nonEmptyUrl(r.main_photo) ??
+      nonEmptyUrl(r.thumbnail),
+    latitude: staticInfo?.latitude ?? r.latitude ?? null,
+    longitude: staticInfo?.longitude ?? r.longitude ?? null,
   }
 
   const offer: NormalizedOffer = {

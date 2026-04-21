@@ -18,6 +18,10 @@ export const DateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
 // STATIC HOTEL LIST (GET /data/hotels)
 // ============================================================================
 
+// NOTE: `main_photo` / `thumbnail` intentionally use plain `z.string()` rather
+// than `z.string().url()`. LiteAPI occasionally returns "" or non-HTTPS-prefixed
+// values for these, and we do NOT want the whole response to fail validation
+// over a cosmetic field. The consumer validates URL shape at render time.
 export const HotelListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -28,8 +32,8 @@ export const HotelListItemSchema = z.object({
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
   stars: z.number().optional().nullable(),
-  main_photo: z.string().url().optional().nullable(),
-  thumbnail: z.string().url().optional().nullable(),
+  main_photo: z.string().optional().nullable(),
+  thumbnail: z.string().optional().nullable(),
   currency: z.string().optional().nullable(),
   chain: z.string().optional().nullable(),
   chainId: z.union([z.string(), z.number()]).optional().nullable(),
@@ -48,8 +52,8 @@ export type HotelListItem = z.infer<typeof HotelListItemSchema>
 // ============================================================================
 
 export const HotelImageSchema = z.object({
-  url: z.string().url().optional().nullable(),
-  urlHd: z.string().url().optional().nullable(),
+  url: z.string().optional().nullable(),
+  urlHd: z.string().optional().nullable(),
   caption: z.string().optional().nullable(),
   order: z.number().optional().nullable(),
   defaultImage: z.boolean().optional().nullable(),
@@ -72,8 +76,8 @@ export const HotelDetailsSchema = z.object({
   longitude: z.number().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
-  main_photo: z.string().url().optional().nullable(),
-  thumbnail: z.string().url().optional().nullable(),
+  main_photo: z.string().optional().nullable(),
+  thumbnail: z.string().optional().nullable(),
   hotelImages: z.array(HotelImageSchema).optional().nullable(),
   hotelFacilities: z.array(z.string()).optional().nullable(),
   amenities: z.array(HotelAmenitySchema).optional().nullable(),
@@ -198,8 +202,8 @@ export const HotelRatesSchema = z.object({
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   country: z.string().optional().nullable(),
-  main_photo: z.string().url().optional().nullable(),
-  thumbnail: z.string().url().optional().nullable(),
+  main_photo: z.string().optional().nullable(),
+  thumbnail: z.string().optional().nullable(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
   rating: z.number().optional().nullable(),
